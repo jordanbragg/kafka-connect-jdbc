@@ -146,14 +146,22 @@ public class BufferedRecords {
     int totalUpdateCount = 0;
     boolean successNoInfo = false;
     for (int updateCount : preparedStatement.executeBatch()) {
+      log.info("Update Cnt {}", updateCount);
       if (updateCount == Statement.SUCCESS_NO_INFO) {
         successNoInfo = true;
         continue;
       }
+      // In case multiple deletes passed, delete becomes idempotent
+      if (currentSchemaPair.valueSchema == null
+              && config.deleteEnabled
+              && updateCount == 0) {
+        updateCount = 1;
+      }
       totalUpdateCount += updateCount;
     }
     if (totalUpdateCount != records.size() && !successNoInfo) {
-      if (currentSchemaPair.valueSchema == null && config.deleteEnabled) {
+      if (currentSchemaPair.valueSchema == null
+              && config.deleteEnabled) {
         throw new ConnectException(String.format(
                 "Delete count (%d) did not sum up to total number of records deleted (%d)",
                 totalUpdateCount,
