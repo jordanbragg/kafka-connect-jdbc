@@ -1382,12 +1382,32 @@ public class GenericDatabaseDialect implements DatabaseDialect {
   }
 
   @Override
+  public final String getDelete(
+           final TableId table,
+           final Collection<ColumnId> keyColumns
+  ) {
+    ExpressionBuilder builder = expressionBuilder();
+    builder.append("DELETE FROM ");
+    builder.append(table);
+
+    if (!keyColumns.isEmpty()) {
+      builder.append(" WHERE ");
+      builder.appendList()
+               .delimitedBy(" AND ")
+               .transformedBy(ExpressionBuilder.columnNamesWith(" = ?"))
+               .of(keyColumns);
+    }
+    return builder.toString();
+  }
+
+  @Override
   public StatementBinder statementBinder(
       PreparedStatement statement,
       PrimaryKeyMode pkMode,
       SchemaPair schemaPair,
       FieldsMetadata fieldsMetadata,
-      InsertMode insertMode
+      InsertMode insertMode,
+      boolean isDeleteEnabled
   ) {
     return new PreparedStatementBinder(
         this,
@@ -1395,7 +1415,8 @@ public class GenericDatabaseDialect implements DatabaseDialect {
         pkMode,
         schemaPair,
         fieldsMetadata,
-        insertMode
+        insertMode,
+        isDeleteEnabled
     );
   }
 

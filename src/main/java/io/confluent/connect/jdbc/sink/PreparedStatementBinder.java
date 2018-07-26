@@ -38,6 +38,7 @@ public class PreparedStatementBinder implements StatementBinder {
   private final FieldsMetadata fieldsMetadata;
   private final JdbcSinkConfig.InsertMode insertMode;
   private final DatabaseDialect dialect;
+  private final boolean isDeleteEnabled;
 
   public PreparedStatementBinder(
       DatabaseDialect dialect,
@@ -45,7 +46,8 @@ public class PreparedStatementBinder implements StatementBinder {
       JdbcSinkConfig.PrimaryKeyMode pkMode,
       SchemaPair schemaPair,
       FieldsMetadata fieldsMetadata,
-      JdbcSinkConfig.InsertMode insertMode
+      JdbcSinkConfig.InsertMode insertMode,
+      boolean isDeleteEnabled
   ) {
     this.dialect = dialect;
     this.pkMode = pkMode;
@@ -53,6 +55,7 @@ public class PreparedStatementBinder implements StatementBinder {
     this.schemaPair = schemaPair;
     this.fieldsMetadata = fieldsMetadata;
     this.insertMode = insertMode;
+    this.isDeleteEnabled = isDeleteEnabled;
   }
 
   @Override
@@ -65,21 +68,26 @@ public class PreparedStatementBinder implements StatementBinder {
     //             keyFieldNames, in iteration order for all UPDATE queries
 
     int index = 1;
-    switch (insertMode) {
-      case INSERT:
-      case UPSERT:
-        index = bindKeyFields(record, index);
-        bindNonKeyFields(record, valueStruct, index);
-        break;
+    if (valueStruct == null
+            && isDeleteEnabled) {
+      bindKeyFields(record, index);
+    } else {
+      switch (insertMode) {
+        case INSERT:
+        case UPSERT:
+          index = bindKeyFields(record, index);
+          bindNonKeyFields(record, valueStruct, index);
+          break;
 
-      case UPDATE:
-        index = bindNonKeyFields(record, valueStruct, index);
-        bindKeyFields(record, index);
-        break;
-      default:
-        throw new AssertionError();
-
+        case UPDATE:
+          index = bindNonKeyFields(record, valueStruct, index);
+          bindKeyFields(record, index);
+          break;
+        default:
+          throw new AssertionError();
+      }
     }
+
     statement.addBatch();
   }
 

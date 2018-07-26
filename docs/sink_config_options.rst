@@ -59,6 +59,13 @@ Writes
   * Valid Values: [insert, upsert, update]
   * Importance: high
 
+``delete.enabled``
+  Whether to treat ``null`` record values as deletes. If ``true``, requires ``pk.mode`` to be ``record_key``.
+
+  * Type: boolean
+  * Default: false
+  * Importance: medium
+
 ``batch.size``
   Specifies how many records to attempt to batch together for insertion into the destination table, when possible.
 

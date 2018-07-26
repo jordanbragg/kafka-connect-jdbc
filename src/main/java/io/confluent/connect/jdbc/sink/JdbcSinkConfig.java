@@ -187,6 +187,12 @@ public class JdbcSinkConfig extends AbstractConfig {
       + "specific dialect. All properly-packaged dialects in the JDBC connector plugin "
       + "can be used.";
 
+  public static final String DELETE_ENABLED = "delete.enabled";
+  private static final String DELETE_ENABLED_DEFAULT = "false";
+  private static final String DELETE_ENABLED_DOC = "Whether to treat ``null`` record values "
+           + "as deletes. Requires ``pk.mode`` to be ``record_key``.";
+  private static final String DELETE_ENABLED_DISPLAY = "Enable deletes";
+
   public static final ConfigDef CONFIG_DEF = new ConfigDef()
         // Connection
         .define(
@@ -349,6 +355,16 @@ public class JdbcSinkConfig extends AbstractConfig {
             2,
             ConfigDef.Width.SHORT,
             RETRY_BACKOFF_MS_DISPLAY
+        )
+        .define(DELETE_ENABLED,
+            ConfigDef.Type.BOOLEAN,
+            DELETE_ENABLED_DEFAULT,
+            ConfigDef.Importance.MEDIUM,
+            DELETE_ENABLED_DOC,
+            WRITES_GROUP,
+            3,
+            ConfigDef.Width.SHORT,
+            DELETE_ENABLED_DISPLAY
         );
 
   public final String connectionUrl;
@@ -365,6 +381,7 @@ public class JdbcSinkConfig extends AbstractConfig {
   public final List<String> pkFields;
   public final Set<String> fieldsWhitelist;
   public final String dialectName;
+  public final boolean deleteEnabled;
 
   public JdbcSinkConfig(Map<?, ?> props) {
     super(CONFIG_DEF, props);
@@ -382,6 +399,7 @@ public class JdbcSinkConfig extends AbstractConfig {
     pkFields = getList(PK_FIELDS);
     dialectName = getString(DIALECT_NAME_CONFIG);
     fieldsWhitelist = new HashSet<>(getList(FIELDS_WHITELIST));
+    deleteEnabled = getBoolean(DELETE_ENABLED);
   }
 
   private String getPasswordValue(String key) {

@@ -75,35 +75,45 @@ public class BufferedRecords {
 
     if (currentSchemaPair == null) {
       currentSchemaPair = schemaPair;
+
       // re-initialize everything that depends on the record schema
       fieldsMetadata = FieldsMetadata.extract(
-          tableId.tableName(),
-          config.pkMode,
-          config.pkFields,
-          config.fieldsWhitelist,
-          currentSchemaPair
-      );
-      dbStructure.createOrAmendIfNecessary(
-          config,
-          connection,
-          tableId,
-          fieldsMetadata
+              tableId.tableName(),
+              config.pkMode,
+              config.pkFields,
+              config.fieldsWhitelist,
+              currentSchemaPair
       );
 
-      final String sql = getInsertSql();
+      String parameterizedRawSql;
+
+      //Tombstone Record
+      if (currentSchemaPair.valueSchema == null && config.deleteEnabled) {
+        parameterizedRawSql = getDeleteSql();
+      } else {
+        dbStructure.createOrAmendIfNecessary(
+                 config,
+                 connection,
+                 tableId,
+                 fieldsMetadata
+        );
+        parameterizedRawSql = getInsertSql();
+      }
+
       log.debug(
-          "{} sql: {}",
-          config.insertMode,
-          sql
+               "{} sql: {}",
+               config.insertMode,
+               parameterizedRawSql
       );
       close();
-      preparedStatement = connection.prepareStatement(sql);
+      preparedStatement = connection.prepareStatement(parameterizedRawSql);
       preparedStatementBinder = dbDialect.statementBinder(
-          preparedStatement,
-          config.pkMode,
-          schemaPair,
-          fieldsMetadata,
-          config.insertMode
+               preparedStatement,
+               config.pkMode,
+               schemaPair,
+               fieldsMetadata,
+               config.insertMode,
+               config.deleteEnabled
       );
     }
 
@@ -143,24 +153,32 @@ public class BufferedRecords {
       totalUpdateCount += updateCount;
     }
     if (totalUpdateCount != records.size() && !successNoInfo) {
-      switch (config.insertMode) {
-        case INSERT:
-          throw new ConnectException(String.format(
-              "Update count (%d) did not sum up to total number of records inserted (%d)",
-              totalUpdateCount,
-              records.size()
-          ));
-        case UPSERT:
-        case UPDATE:
-          log.trace(
-              "{} records:{} resulting in in totalUpdateCount:{}",
-              config.insertMode,
-              records.size(),
-              totalUpdateCount
-          );
-          break;
-        default:
-          throw new ConnectException("Unknown insert mode: " + config.insertMode);
+      if (currentSchemaPair.valueSchema == null && config.deleteEnabled) {
+        throw new ConnectException(String.format(
+                "Delete count (%d) did not sum up to total number of records deleted (%d)",
+                totalUpdateCount,
+                records.size()
+        ));
+      } else {
+        switch (config.insertMode) {
+          case INSERT:
+            throw new ConnectException(String.format(
+                    "Update count (%d) did not sum up to total number of records inserted (%d)",
+                    totalUpdateCount,
+                    records.size()
+            ));
+          case UPSERT:
+          case UPDATE:
+            log.trace(
+                    "{} records:{} resulting in in totalUpdateCount:{}",
+                    config.insertMode,
+                    records.size(),
+                    totalUpdateCount
+            );
+            break;
+          default:
+            throw new ConnectException("Unknown insert mode: " + config.insertMode);
+        }
       }
     }
     if (successNoInfo) {
@@ -221,6 +239,27 @@ public class BufferedRecords {
       default:
         throw new ConnectException("Invalid insert mode");
     }
+  }
+
+  private String getDeleteSql() {
+    String sql = null;
+    if (config.deleteEnabled) {
+      switch (config.pkMode) {
+        case NONE:
+        case KAFKA:
+        case RECORD_VALUE:
+          throw new ConnectException("Deletes are only supported for pk.mode record_key");
+        case RECORD_KEY:
+          if (fieldsMetadata.keyFieldNames.isEmpty()) {
+            throw new ConnectException("Require primary keys to support delete");
+          }
+          sql = dbDialect.getDelete(tableId, asColumns(fieldsMetadata.keyFieldNames));
+          break;
+        default:
+          throw new ConnectException("Invalid pk.mode");
+      }
+    }
+    return sql;
   }
 
   private Collection<ColumnId> asColumns(Collection<String> names) {

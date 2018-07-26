@@ -118,7 +118,8 @@ public class PreparedStatementBinderTest {
         pkMode,
         schemaPair,
         fieldsMetadata,
-        JdbcSinkConfig.InsertMode.INSERT
+        JdbcSinkConfig.InsertMode.INSERT,
+        false
     );
 
     binder.bindRecord(new SinkRecord("topic", 0, null, null, valueSchema, valueStruct, 0));
@@ -170,7 +171,8 @@ public class PreparedStatementBinderTest {
                 statement,
                 pkMode,
                 schemaPair,
-                fieldsMetadata, JdbcSinkConfig.InsertMode.UPSERT
+                fieldsMetadata, JdbcSinkConfig.InsertMode.UPSERT,
+                false
         );
 
         binder.bindRecord(new SinkRecord("topic", 0, null, null, valueSchema, valueStruct, 0));
@@ -209,7 +211,8 @@ public class PreparedStatementBinderTest {
                 statement,
                 pkMode,
                 schemaPair,
-                fieldsMetadata, JdbcSinkConfig.InsertMode.UPDATE
+                fieldsMetadata, JdbcSinkConfig.InsertMode.UPDATE,
+                false
         );
 
         binder.bindRecord(new SinkRecord("topic", 0, null, null, valueSchema, valueStruct, 0));
