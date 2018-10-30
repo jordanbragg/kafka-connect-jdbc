@@ -79,11 +79,18 @@ public class BufferedRecords {
       // re-initialize everything that depends on the record schema
       fieldsMetadata = FieldsMetadata.extract(
               tableId.tableName(),
-              config.pkMode,
-              config.pkFields,
-              config.fieldsWhitelist,
-              currentSchemaPair
+          config.pkMode,
+          config.pkFields,
+          config.fieldsWhitelist,
+          currentSchemaPair
       );
+      dbStructure.createOrAmendIfNecessary(
+          config,
+          connection,
+          tableId,
+          fieldsMetadata
+      );
+      final String sql = getInsertSql();
 
       String parameterizedRawSql;
 
@@ -138,6 +145,7 @@ public class BufferedRecords {
 
   public List<SinkRecord> flush() throws SQLException {
     if (records.isEmpty()) {
+      log.debug("Records is empty");
       return new ArrayList<>();
     }
     for (SinkRecord record : records) {
@@ -168,24 +176,24 @@ public class BufferedRecords {
                 records.size()
         ));
       } else {
-        switch (config.insertMode) {
-          case INSERT:
-            throw new ConnectException(String.format(
-                    "Update count (%d) did not sum up to total number of records inserted (%d)",
-                    totalUpdateCount,
-                    records.size()
-            ));
-          case UPSERT:
-          case UPDATE:
-            log.trace(
-                    "{} records:{} resulting in in totalUpdateCount:{}",
-                    config.insertMode,
-                    records.size(),
-                    totalUpdateCount
-            );
-            break;
-          default:
-            throw new ConnectException("Unknown insert mode: " + config.insertMode);
+      switch (config.insertMode) {
+        case INSERT:
+          throw new ConnectException(String.format(
+              "Update count (%d) did not sum up to total number of records inserted (%d)",
+              totalUpdateCount,
+              records.size()
+          ));
+        case UPSERT:
+        case UPDATE:
+          log.debug(
+              "{} records:{} resulting in in totalUpdateCount:{}",
+              config.insertMode,
+              records.size(),
+              totalUpdateCount
+          );
+          break;
+        default:
+          throw new ConnectException("Unknown insert mode: " + config.insertMode);
         }
       }
     }
@@ -203,6 +211,7 @@ public class BufferedRecords {
   }
 
   public void close() throws SQLException {
+    log.info("Closing BufferedRecords with preparedStatement: {}", preparedStatement);
     if (preparedStatement != null) {
       preparedStatement.close();
       preparedStatement = null;
