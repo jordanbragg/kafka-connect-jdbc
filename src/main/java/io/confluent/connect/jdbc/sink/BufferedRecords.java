@@ -167,36 +167,7 @@ public class BufferedRecords {
       }
       totalUpdateCount += updateCount;
     }
-    if (totalUpdateCount != records.size() && !successNoInfo) {
-      if (currentSchemaPair.valueSchema == null
-              && config.deleteEnabled) {
-        throw new ConnectException(String.format(
-                "Delete count (%d) did not sum up to total number of records deleted (%d)",
-                totalUpdateCount,
-                records.size()
-        ));
-      } else {
-      switch (config.insertMode) {
-        case INSERT:
-          throw new ConnectException(String.format(
-              "Update count (%d) did not sum up to total number of records inserted (%d)",
-              totalUpdateCount,
-              records.size()
-          ));
-        case UPSERT:
-        case UPDATE:
-          log.debug(
-              "{} records:{} resulting in in totalUpdateCount:{}",
-              config.insertMode,
-              records.size(),
-              totalUpdateCount
-          );
-          break;
-        default:
-          throw new ConnectException("Unknown insert mode: " + config.insertMode);
-        }
-      }
-    }
+    validateFlush(totalUpdateCount, successNoInfo);
     if (successNoInfo) {
       log.info(
           "{} records:{} , but no count of the number of rows it affected is available",
@@ -208,6 +179,39 @@ public class BufferedRecords {
     final List<SinkRecord> flushedRecords = records;
     records = new ArrayList<>();
     return flushedRecords;
+  }
+
+  private void validateFlush(int totalUpdateCount, boolean successNoInfo) {
+    if (totalUpdateCount != records.size() && !successNoInfo) {
+      if (currentSchemaPair.valueSchema == null
+              && config.deleteEnabled) {
+        throw new ConnectException(String.format(
+                "Delete count (%d) did not sum up to total number of records deleted (%d)",
+                totalUpdateCount,
+                records.size()
+        ));
+      } else {
+        switch (config.insertMode) {
+          case INSERT:
+            throw new ConnectException(String.format(
+                    "Update count (%d) did not sum up to total number of records inserted (%d)",
+                    totalUpdateCount,
+                    records.size()
+            ));
+          case UPSERT:
+          case UPDATE:
+            log.debug(
+                    "{} records:{} resulting in in totalUpdateCount:{}",
+                    config.insertMode,
+                    records.size(),
+                    totalUpdateCount
+            );
+            break;
+          default:
+            throw new ConnectException("Unknown insert mode: " + config.insertMode);
+        }
+      }
+    }
   }
 
   public void close() throws SQLException {

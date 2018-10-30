@@ -192,7 +192,8 @@ public class JdbcSinkConfig extends AbstractConfig {
 
   public static final String DB_TIMEZONE_CONFIG = "db.timezone";
   public static final String DB_TIMEZONE_DEFAULT = "UTC";
-  private static final String DB_TIMEZONE_CONFIG_DOC = "Name of the JDBC timezone that should be used in the connector when "
+  private static final String DB_TIMEZONE_CONFIG_DOC = "Name of the JDBC timezone that should "
+          + "be used in the connector when "
           + "inserting time-based values. Defaults to UTC.";
   public static final String DELETE_ENABLED = "delete.enabled";
   private static final String DELETE_ENABLED_DEFAULT = "false";
