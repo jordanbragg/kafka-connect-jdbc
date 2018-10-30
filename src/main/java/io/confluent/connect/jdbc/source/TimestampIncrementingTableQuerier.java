@@ -16,6 +16,7 @@
 
 package io.confluent.connect.jdbc.source;
 
+import java.util.TimeZone;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -70,12 +71,14 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
   private TimestampIncrementingCriteria criteria;
   private final Map<String, String> partition;
   private final String topic;
+  private final TimeZone timeZone;
 
   public TimestampIncrementingTableQuerier(DatabaseDialect dialect, QueryMode mode, String name,
                                            String topicPrefix,
                                            List<String> timestampColumnNames,
                                            String incrementingColumnName,
-                                           Map<String, Object> offsetMap, Long timestampDelay) {
+                                           Map<String, Object> offsetMap, Long timestampDelay,
+                                           TimeZone timeZone) {
     super(dialect, mode, name, topicPrefix);
     this.incrementingColumnName = incrementingColumnName;
     this.timestampColumnNames = timestampColumnNames != null
@@ -104,36 +107,13 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
       default:
         throw new ConnectException("Unexpected query mode: " + mode);
     }
+
+    this.timeZone = timeZone;
   }
 
   @Override
   protected void createPreparedStatement(Connection db) throws SQLException {
-    // Default when unspecified uses an autoincrementing column
-    if (incrementingColumnName != null && incrementingColumnName.isEmpty()) {
-      // Find the first auto-incremented column ...
-      for (ColumnDefinition defn : dialect.describeColumns(
-          db,
-          tableId.catalogName(),
-          tableId.schemaName(),
-          tableId.tableName(),
-          null).values()) {
-        if (defn.isAutoIncrement()) {
-          incrementingColumnName = defn.id().name();
-          break;
-        }
-      }
-    }
-    // If still not found, query the table and use the result set metadata.
-    // This doesn't work if the table is empty.
-    if (incrementingColumnName != null && incrementingColumnName.isEmpty()) {
-      log.debug("Falling back to describe '{}' table by querying {}", tableId, db);
-      for (ColumnDefinition defn : dialect.describeColumnsByQuerying(db, tableId).values()) {
-        if (defn.isAutoIncrement()) {
-          incrementingColumnName = defn.id().name();
-          break;
-        }
-      }
-    }
+    findDefaultAutoIncrementingColumn(db);
 
     ColumnId incrementingColumn = null;
     if (incrementingColumnName != null && !incrementingColumnName.isEmpty()) {
@@ -160,6 +140,35 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
     String queryString = builder.toString();
     log.debug("{} prepared SQL query: {}", this, queryString);
     stmt = dialect.createPreparedStatement(db, queryString);
+  }
+
+  private void findDefaultAutoIncrementingColumn(Connection db) throws SQLException {
+    // Default when unspecified uses an autoincrementing column
+    if (incrementingColumnName != null && incrementingColumnName.isEmpty()) {
+      // Find the first auto-incremented column ...
+      for (ColumnDefinition defn : dialect.describeColumns(
+          db,
+          tableId.catalogName(),
+          tableId.schemaName(),
+          tableId.tableName(),
+          null).values()) {
+        if (defn.isAutoIncrement()) {
+          incrementingColumnName = defn.id().name();
+          break;
+        }
+      }
+    }
+    // If still not found, query the table and use the result set metadata.
+    // This doesn't work if the table is empty.
+    if (incrementingColumnName != null && incrementingColumnName.isEmpty()) {
+      log.debug("Falling back to describe '{}' table by querying {}", tableId, db);
+      for (ColumnDefinition defn : dialect.describeColumnsByQuerying(db, tableId).values()) {
+        if (defn.isAutoIncrement()) {
+          incrementingColumnName = defn.id().name();
+          break;
+        }
+      }
+    }
   }
 
   @Override
@@ -193,7 +202,7 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
   public Timestamp endTimetampValue()  throws SQLException {
     final long currentDbTime = dialect.currentTimeOnDB(
         stmt.getConnection(),
-        DateTimeUtils.UTC_CALENDAR.get()
+        DateTimeUtils.getTimeZoneCalendar(timeZone)
     ).getTime();
     return new Timestamp(currentDbTime - timestampDelay);
   }
