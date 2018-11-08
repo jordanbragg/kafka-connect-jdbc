@@ -154,7 +154,7 @@ public class BufferedRecords {
     int totalUpdateCount = 0;
     boolean successNoInfo = false;
     for (int updateCount : preparedStatement.executeBatch()) {
-      log.info("Update Cnt {}", updateCount);
+      log.debug("Update Cnt {}", updateCount);
       if (updateCount == Statement.SUCCESS_NO_INFO) {
         successNoInfo = true;
         continue;
