@@ -44,7 +44,7 @@ public class BulkTableQuerier extends TableQuerier {
       String name,
       String topicPrefix
   ) {
-    super(dialect, mode, name, topicPrefix);
+    super(dialect, mode, name, topicPrefix, false);
   }
 
   @Override

@@ -78,8 +78,8 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
                                            List<String> timestampColumnNames,
                                            String incrementingColumnName,
                                            Map<String, Object> offsetMap, Long timestampDelay,
-                                           TimeZone timeZone) {
-    super(dialect, mode, name, topicPrefix);
+                                           TimeZone timeZone, boolean boostrapEnabled) {
+    super(dialect, mode, name, topicPrefix, boostrapEnabled);
     this.incrementingColumnName = incrementingColumnName;
     this.timestampColumnNames = timestampColumnNames != null
                                 ? timestampColumnNames : Collections.<String>emptyList();
@@ -135,7 +135,9 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
 
     // Append the criteria using the columns ...
     criteria = dialect.criteriaFor(incrementingColumn, timestampColumns);
-    criteria.whereClause(builder);
+    if (hasOffsets() || (!hasOffsets() && !isBootstrapEnabled)) {
+      criteria.whereClause(builder);
+    }
 
     String queryString = builder.toString();
     log.debug("{} prepared SQL query: {}", this, queryString);
@@ -223,5 +225,10 @@ public class TimestampIncrementingTableQuerier extends TableQuerier implements C
                                         : "") + '\''
            + ", timestampColumns=" + timestampColumnNames
            + '}';
+  }
+
+  protected boolean hasOffsets() {
+    return !this.offset.equals(
+            new TimestampIncrementingOffset(null, null));
   }
 }

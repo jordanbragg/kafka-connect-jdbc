@@ -49,12 +49,14 @@ abstract class TableQuerier implements Comparable<TableQuerier> {
   protected PreparedStatement stmt;
   protected ResultSet resultSet;
   protected SchemaMapping schemaMapping;
+  protected boolean isBootstrapEnabled;
 
   public TableQuerier(
       DatabaseDialect dialect,
       QueryMode mode,
       String nameOrQuery,
-      String topicPrefix
+      String topicPrefix,
+      boolean isBoostrapEnabled
   ) {
     this.dialect = dialect;
     this.mode = mode;
@@ -62,6 +64,7 @@ abstract class TableQuerier implements Comparable<TableQuerier> {
     this.query = mode.equals(QueryMode.QUERY) ? nameOrQuery : null;
     this.topicPrefix = topicPrefix;
     this.lastUpdate = 0;
+    this.isBootstrapEnabled = isBoostrapEnabled;
   }
 
   public long getLastUpdate() {
@@ -69,8 +72,14 @@ abstract class TableQuerier implements Comparable<TableQuerier> {
   }
 
   public PreparedStatement getOrCreatePreparedStatement(Connection db) throws SQLException {
+    // If bootstrap is enabled, re-create stmt
     if (stmt != null) {
-      return stmt;
+      if (!isBootstrapEnabled) {
+        return stmt;
+      } else {
+        stmt.close();
+      }
+
     }
     createPreparedStatement(db);
     return stmt;

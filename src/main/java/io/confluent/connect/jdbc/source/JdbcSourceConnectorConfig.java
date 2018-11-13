@@ -250,6 +250,13 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
       + "querying with time-based criteria. Defaults to UTC.";
   private static final String DB_TIMEZONE_CONFIG_DISPLAY = "DB time zone";
 
+  public static final String BOOTSTRAP_CONFIG = "bootstrap.enabled";
+  public static final boolean BOOTSTRAP_DEFAULT = false;
+  private static final String BOOTSTRAP_CONFIG_DOC =
+          "For large tables, initially bulk load then switch to proper incrementing/timestamp"
+                  + "modes";
+  private static final String BOOTSTRAP_CONFIG_DISPLAY = "Bootstrap enabled";
+
 
   public static final String DATABASE_GROUP = "Database";
   public static final String MODE_GROUP = "Mode";
@@ -559,7 +566,17 @@ public class JdbcSourceConnectorConfig extends AbstractConfig {
         CONNECTOR_GROUP,
         ++orderInGroup,
         Width.MEDIUM,
-        DB_TIMEZONE_CONFIG_DISPLAY);
+        DB_TIMEZONE_CONFIG_DISPLAY
+    ).define(
+        BOOTSTRAP_CONFIG,
+        Type.BOOLEAN,
+        BOOTSTRAP_DEFAULT,
+        Importance.LOW,
+        BOOTSTRAP_CONFIG_DOC,
+        CONNECTOR_GROUP,
+        ++orderInGroup,
+        Width.SHORT,
+        BOOTSTRAP_CONFIG_DISPLAY);
   }
 
   public static final ConfigDef CONFIG_DEF = baseConfigDef();
